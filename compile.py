@@ -44,7 +44,7 @@ def main():
     try:
         exp = parse(args.sourcefile)
         log.debug("Parsed to: {}".format(exp))
-        exp.gen(context, target="r1")
+        exp.gen(context, target=context.alloc_reg())
         context.add_line("   HALT  r0,r0,r0")
         assm = context.get_lines()
         log.debug("assm = {}".format(assm))

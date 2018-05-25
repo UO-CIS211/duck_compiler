@@ -8,13 +8,12 @@ but modified to read from a file.
 
 Author: Michal Young (michal@cs.uoregon.edu), March 2018
 """
-import typing
-from typing import Sequence, Type, TextIO
-import re
-import syntax
-import expr
+from typing import Sequence, TextIO
 
 import logging
+
+from compiler import syntax
+
 logging.basicConfig()
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
@@ -23,50 +22,58 @@ log.setLevel(logging.INFO)
 # based on file syntax.py
 OPSYMS = syntax.OPS.keys()
 
+
 class LexicalError(Exception):
     """Raised when we can't extract tokens from the input"""
     pass
 
+
 class Token(object):
     """One token from the input stream"""
 
-    def __init__(self, value: any, kind: str, clazz: Type(expr.Expr)):
+    def __init__(self, value: any, kind: syntax.TokenCat):
         self.value = value
         self.kind = kind
-        self.clazz = clazz
 
     def __repr__(self) -> str:
-        return "Token({}, {}, {})".format(repr(self.value), self.kind,
-                                                self.clazz.__name__)
+        return "Token({}: {})".format(repr(self.value), self.kind)
+
     def __str__(self) -> str:
         return repr(self)
 
-    
-class Token_Stream(object):
+
+END = Token("End of Input", syntax.TokenCat.END)
+
+
+class TokenStream(object):
     """
     Provides the tokens within a string one-by-one.
     """
 
     def __init__(self, f: TextIO):
         self.file = f
-        self.tokens = [ ]
+        self.tokens = []
         self._check_fill()
         log.debug("Tokens: {}".format(self.tokens))
 
-    def __str__(self) -> str: 
+    def __str__(self) -> str:
         return "[{}]".format("|".join(self.tokens))
 
     def _check_fill(self):
-        if len(self.tokens) == 0:
+        while len(self.tokens) == 0:
+            # We could read more than one line before hitting
+            # a token, but the loop will be broken if we
+            # hit end of file
             line = self.file.readline()
-            while line == "\n":
-                # Skip blank lines
-                line = self.file.readline()
-            if len(line) > 0:
-                # Zero-length line means EOF
-                self.tokens = lex(line.strip())
-                log.debug("Refilled, tokens: {}".format(self.tokens))
-
+            if len(line) == 0:
+                # End of file, leave zero tokens in buffer
+                break
+            self.tokens = lex(line.strip())
+            log.debug("Refilled, tokens: {}".format(self.tokens))
+            # Note this might also leave zero tokens in buffer,
+            # but in that case outer while loop will attempt
+            # to refill it until we either get some tokens
+            # or hit end of file
 
     def has_more(self) -> bool:
         """True if there are more tokens in the stream"""
@@ -95,24 +102,22 @@ class Token_Stream(object):
 def lex(s: str) -> Sequence[Token]:
     """Break string into a list of Token objects"""
     words = s.split()
-    tokens = [ ]
+    tokens = []
     for word in words:
+        if word.startswith("#"):
+            break  # Discard comments
         tokens.append(classify(word))
     return tokens
+
 
 def classify(word: str) -> Token:
     """Convert a textual token into a Token object
     with a value and category.
     """
-    if word in OPSYMS:
-        category, clazz = syntax.OPS[word]
-        return Token(word, category, clazz)
-    elif word.isidentifier():
-        return Token(word, syntax.IDENT, expr.Var)
-    elif word.isdigit():
-        return Token(int(word), syntax.CONST, expr.Const)
-    elif re.match("[0-9]*.[0-9]+", word):
-        return Token(float(word), syntax.CONST, expr.Const)
-    else:
-        raise LexicalError("Unrecognized token '{}'".format(word))
-
+    for kind in syntax.TokenCat:
+        log.debug(f"Checking {word} for token class {kind}")
+        pattern = kind.value
+        if pattern.fullmatch(word):
+            log.debug(f"Classified as {kind}")
+            return Token(word, kind)
+    raise LexicalError("Unrecognized token '{}'".format(word))

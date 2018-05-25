@@ -1,21 +1,16 @@
 """
-Driver (main program) for
-Duck Machine Basic Operations Language (Dumbol).
-Input is a postfix expression.  Output is an
-assembly language program for making the 
-same calculation, provided each variable value 
-is assigned before it is used.  (That is, 
-these calculations are not symbolic --- they 
-are like working in a conventional programming
-language in which you must put the instructions 
-in the necessary order.) 
+Driver (main program) for expression compiler. 
+Input is parsed by llparse.py to create an
+Expr object.  The 'gen' methods in Expr walk over
+the Expr tree and produce assembly code in the
+Context object.
 """
 
-from rpn_parse import parse, InputError
-from lexer import LexicalError
-import expr
-import codegen_context
+from compiler.llparse import parse, InputError
+from compiler.lexer import LexicalError
+from compiler import codegen_context
 
+import datetime
 import argparse
 import sys
 
@@ -23,6 +18,7 @@ import logging
 logging.basicConfig()
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
+
 
 def cli() -> object:
     """Get arguments from command line"""
@@ -40,20 +36,33 @@ def main():
     args = cli()
     context = codegen_context.Context()
     context.add_line("# Lovingly crafted by robots")
+    context.add_line("# {} from {}".format(datetime.datetime.now(), args.sourcefile.name))
+    context.add_line("#")
+    # Memory mapped IO addressed hooked to special variables named 'in' and 'out'
+    context.hook_var("in", 510)
+    context.hook_var("out", 511)
     ok = True
     try:
         exp = parse(args.sourcefile)
         log.debug("Parsed to: {}".format(exp))
-        exp.gen(context, target=context.alloc_reg())
-        context.add_line("   HALT  r0,r0,r0")
+        work_register = context.alloc_reg()
+        exp.gen(context, work_register)
+        context.free_reg(work_register)
+        context.add_line("\tHALT  r0,r0,r0")
         assm = context.get_lines()
         log.debug("assm = {}".format(assm))
         for line in assm:
+            # noinspection PyUnresolvedReferences
             print(line, file=args.outfile)
         print("#Compilation complete")
     except InputError as e:
+        print("Syntax error, bailing")
+    except LexicalError as e:
+        print("Lexical error, bailing")
+    except Exception as e:
         print("Failed!")
         print(e)
+        raise e
 
 
 if __name__ == "__main__":

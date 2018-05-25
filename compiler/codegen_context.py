@@ -20,6 +20,7 @@ logging.basicConfig()
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
 
+
 class Context(object):
     """The state of code generation"""
 
@@ -33,14 +34,18 @@ class Context(object):
 
         # A table of integer constants to be declared at
         # the end of the source program.  The table maps
-        # values to names, so that we can reuse them. 
-
+        # values to names, so that we can reuse them.
         self.consts = { }
         
         # A table of variables to be declared at
         # the end of the source program, with the
         # symbols used for them in the assembly code. 
-        self.vars = { } 
+        self.vars = { }
+
+        # A table of variable names that are hooked
+        # to special memory-mapped addresses, e.g.,
+        # they may trigger input or output.
+        self.hooks = { }
 
         # Instructions in the source code, as a list of
         # strings.
@@ -70,18 +75,26 @@ class Context(object):
         self.consts[value] = symbol
         return symbol
 
+    def hook_var(self, var_name: str, address: int):
+        """This variable name is special --- it corresponds
+        to a memory-mapped address.
+        """
+        self.hooks[var_name] = address
+
     def get_var_symbol(self, var_name: str) -> str:
         """Returns name name of a label where the 
         variable var_name will be stored.  Variables
         will be initialized to zero. 
         """
+        if var_name in self.hooks:
+            return "r0,r0[{}]".format(self.hooks[var_name])
         if var_name in self.vars:
             return self.vars[var_name]
         symbol = self.new_label(var_name)
         self.vars[var_name] = symbol
         return symbol
 
-    def new_label(self, base_name:str) -> str:
+    def new_label(self, base_name: str) -> str:
         """Return a new symbol (label) starting
         with base_name and suffixed with a 
         counter to ensure uniqueness.  For example, 
@@ -98,10 +111,10 @@ class Context(object):
         code = self.assm_lines.copy()
         for varname in self.vars:
             code.append("{}: DATA 0 #{}"
-                            .format(self.vars[varname], varname))
+                        .format(self.vars[varname], varname))
         for constval in self.consts:
             code.append("{}:  DATA {}"
-                            .format(self.consts[constval], constval))
+                        .format(self.consts[constval], constval))
         return code
 
     # Register management:
@@ -111,7 +124,7 @@ class Context(object):
     #      register as a safety check.
     def alloc_reg(self) -> str:
         if self.cur_reg >= self.max_reg: 
-            raise RunTimeError("Ran out of registers in code generation")
+            raise RuntimeError("Ran out of registers in code generation")
         self.cur_reg += 1
         return "r{}".format(self.cur_reg)
 
@@ -120,14 +133,7 @@ class Context(object):
         assert self.cur_reg >= self.min_reg, (
             "{} is outside range of registers that can be allocated"
             .format(regname))
-        assert regname == expected, ("Tried to free {}, expecting {}"
-                                   .format(regname, expected))
+        assert regname == expected, (
+            "Tried to free {}, expecting {}".format(regname, expected))
         self.cur_reg -= 1
         return
-
-    
-
-
-    
-        
-        

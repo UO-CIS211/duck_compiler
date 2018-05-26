@@ -265,8 +265,8 @@ class If(Control):
         # jump to endif
         # elsepart:
         # <code for elsepart>
-        # endif:
-        # Generate fresh labels for the 'thenpart' and 'elsepart' each time,
+        # fi:
+        # Generate fresh labels for the 'elsepart' and 'fi' each time,
         # since there could be more than one 'if' statement in a program.
         # Look at the 'while' statement above for examples of code
         # generation for tests, jumps, and labels.

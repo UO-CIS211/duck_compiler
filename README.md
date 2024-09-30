@@ -1,6 +1,8 @@
-# Duck Compiler
+# Duck Compiler  (Superseded by https://github.com/UO-CIS211/duck-stack)
 
-This project is a compiler (and an interpreter) for Awl, the Awkward Waterfowl Language or the Adequate Waterfowl Language or something, but definitely not the Aquatic Waterfowl Language because that would be redundant.  
+This project is a compiler (and an interpreter) for Awl, the Awkward Waterfowl Language or the Adequate Waterfowl Language or something, but definitely not the Aquatic Waterfowl Language because that would be redundant.
+
+The compiler is now one part of a multi-week project group (machine simulator, assembler, compiler) in https://github.com/UO-CIS211/duck-stack
 
 ## Recycled code
 
